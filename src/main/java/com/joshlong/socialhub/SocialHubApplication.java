@@ -65,6 +65,7 @@ public class SocialHubApplication {
     ApplicationRunner registrationRunner(AyrshareAccountsService accounts, UsersService users, HubProperties properties) {
         return args -> {
 
+            log.info(properties.toString());
             var newAccounts = new HashMap<String, AyrshareAccount>();
             var newUsers = new HashSet<User>();
 
