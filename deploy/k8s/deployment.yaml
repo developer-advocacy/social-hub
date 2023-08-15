@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: social-hub
+  name: social-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: social-hub
+  template:
+    metadata:
+      labels:
+        app: social-hub
+    spec:
+      containers:
+        - image: gcr.io/pgtm-jlong/social-hub
+          imagePullPolicy: Always
+          name: social-hub-container
+          startupProbe:
+            failureThreshold: 240
+            periodSeconds: 240
+            httpGet:
+              port: 8080
+              path: /actuator/health/readiness
+
+          readinessProbe:
+            failureThreshold: 240
+            periodSeconds: 240
+            httpGet:
+              port: 8080
+              path: /actuator/health/readiness
+
+          livenessProbe:
+            failureThreshold: 240
+            periodSeconds: 240
+            httpGet:
+              port: 8080
+              path: /actuator/health/liveness
+          envFrom:
+            - secretRef:
+                name: social-hub-secrets
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            - name: LANG
+              value: "en_US.UTF-8"
+          resources:
+            limits:
+              memory: "1Gi"
+            requests:
+              memory: "1Gi"

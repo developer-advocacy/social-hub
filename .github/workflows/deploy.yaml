@@ -1,0 +1,90 @@
+name: Deploy
+
+env:
+
+  APP_NAME: social-hub
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER }}
+  GCLOUD_ZONE: ${{ secrets.GCLOUD_ZONE }}
+  NS_NAME: content-hubs
+  GCLOUD_SA_KEY: ${{ secrets.GCLOUD_SA_KEY }}
+
+#  SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+#  SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
+#  SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+#
+#  SPRING_RABBITMQ_HOST: ${{ secrets.TWITTER_SERVICE_RABBITMQ_HOST }}
+#  SPRING_RABBITMQ_PASSWORD: ${{ secrets.TWITTER_SERVICE_RABBITMQ_PASSWORD }}
+#  SPRING_RABBITMQ_PORT: ${{ secrets.TWITTER_SERVICE_RABBITMQ_PORT }}
+#  SPRING_RABBITMQ_USERNAME: ${{ secrets.TWITTER_SERVICE_RABBITMQ_USERNAME }}
+#  SPRING_RABBITMQ_VIRTUAL_HOST: ${{ secrets.TWITTER_SERVICE_RABBITMQ_VIRTUAL_HOST }}
+
+  SOCIALHUB_DB_HOST: ${{secrets.SOCIALHUB_DB_HOST}}
+  SOCIALHUB_DB_PASSWORD: ${{secrets.SOCIALHUB_DB_PASSWORD}}
+  SOCIALHUB_DB_SCHEMA: ${{secrets.SOCIALHUB_DB_SCHEMA}}
+  SOCIALHUB_DB_USERNAME: ${{secrets.SOCIALHUB_DB_USERNAME}}
+  SOCIALHUB_ENCRYPTION_PASSWORD: ${{secrets.SOCIALHUB_ENCRYPTION_PASSWORD}}
+  SOCIALHUB_ENCRYPTION_SALT: ${{secrets.SOCIALHUB_ENCRYPTION_SALT}}
+  SOCIALHUB_MQ_HOST: ${{secrets.SOCIALHUB_MQ_HOST}}
+  SOCIALHUB_MQ_PASSWORD: ${{secrets.SOCIALHUB_MQ_PASSWORD}}
+  SOCIALHUB_MQ_PORT: ${{secrets.SOCIALHUB_MQ_PORT}}
+  SOCIALHUB_MQ_USERNAME: ${{secrets.SOCIALHUB_MQ_USERNAME}}
+  SOCIALHUB_MQ_VIRTUAL_HOST: ${{secrets.SOCIALHUB_MQ_VIRTUAL_HOST}}
+  SOCIALHUB_URI: ${{secrets.SOCIALHUB_URI}}
+  SOCIALHUB_AYRSHARE_ACCOUNTS_0_TOKEN: ${{secrets.AYRSHARE_JOSHLONG_TOKEN}}
+
+
+on:
+  push:
+    branches: [ main ]
+
+
+jobs:
+  build-and-deploy:
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    name: Setup and Deploy
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: "Setup PATH"
+        run: |
+          P="${GITHUB_WORKSPACE}/bin"
+          mkdir -p $P
+          echo "${P}" >> $GITHUB_PATH
+
+      - uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.GCLOUD_SA_KEY }}'
+
+      - id: 'get-credentials'
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        with:
+          cluster_name: '${{ env.GKE_CLUSTER  }}'
+          location: '${{ env.GCLOUD_ZONE }}'
+
+      - run: |
+          gcloud config set project $GCLOUD_PROJECT 
+          gcloud --quiet auth configure-docker
+          kubectl get pods
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: 17
+
+      - name: Deploy Social Hub
+        run: |
+          kubectl get ns/$NS_NAME || kubectl create ns $NS_NAME 
+          kubectl config set-context --current --namespace=$NS_NAME
+          kubectl config view --minify | grep namespace: && echo "found the namespace.."
+
+          cd $GITHUB_WORKSPACE
+          export ROOT_DIR=$GITHUB_WORKSPACE
+          ./deploy/deploy.sh
