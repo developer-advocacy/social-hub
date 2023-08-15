@@ -19,10 +19,11 @@ docker rmi -f $IMAGE_NAME || echo "couldn't delete the old image, $IMAGE_NAME. I
 
 cd $ROOT_DIR
 
+gcloud compute addresses list --format json | jq '.[].name' -r | grep $RESERVED_IP_NAME || gcloud compute addresses create $RESERVED_IP_NAME --global
+
 ./gradlew bootBuildImage --imageName=$IMAGE_NAME
 docker push $IMAGE_NAME
 
-gcloud compute addresses list --format json | jq '.[].name' -r | grep $RESERVED_IP_NAME || gcloud compute addresses create $RESERVED_IP_NAME --global
 touch "$SECRETS_FN"
 echo writing to "$SECRETS_FN "
 cat <<EOF >${SECRETS_FN}
@@ -38,7 +39,8 @@ SOCIALHUB_MQ_PORT=${SOCIALHUB_MQ_PORT}
 SOCIALHUB_MQ_USERNAME=${SOCIALHUB_MQ_USERNAME}
 SOCIALHUB_MQ_VIRTUAL_HOST=${SOCIALHUB_MQ_VIRTUAL_HOST}
 SOCIALHUB_URI=${SOCIALHUB_URI}
-SOCIALHUB_AYRSHARE_ACCOUNTS_0_TOKEN=${AYRSHARE_JOSHLONG_TOKEN}
+SOCIALHUB_AYRSHAREACCOUNTS_0_TOKEN=${AYRSHARE_JOSHLONG_TOKEN}
+SOCIALHUB_AYRSHAREACCOUNTS_0_LABEL=joshlong
 EOF
 kubectl delete secrets $SECRETS || echo "no secrets to delete."
 kubectl create secret generic $SECRETS --from-env-file "$SECRETS_FN"

@@ -14,6 +14,7 @@ import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 
 import javax.sql.DataSource;
@@ -67,8 +68,10 @@ public class SocialHubApplication {
             var newAccounts = new HashMap<String, AyrshareAccount>();
             var newUsers = new HashSet<User>();
 
-            for (var ayrshareAccount : properties.ayrshareAccounts())
-                newAccounts.put(ayrshareAccount.label(), accounts.newAyrshareAccount(ayrshareAccount.label(), ayrshareAccount.token()));
+            for (var ayrshareAccount : properties.ayrshareAccounts()) {
+                var account = accounts.newAyrshareAccount(ayrshareAccount.label(), ayrshareAccount.token());
+                newAccounts.put(ayrshareAccount.label(), account);
+            }
 
             for (var user : properties.users()) {
                 var accountsForThisUser = new HashSet<AyrshareAccount>();

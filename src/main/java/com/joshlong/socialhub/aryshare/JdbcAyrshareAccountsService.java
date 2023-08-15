@@ -6,6 +6,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 import java.util.Date;
 import java.util.Set;
@@ -46,6 +47,8 @@ class JdbcAyrshareAccountsService implements AyrshareAccountsService {
 
     @Override
     public AyrshareAccount newAyrshareAccount(String label, String bearerToken) {
+        Assert.hasText(label, "the label is null");
+        Assert.hasText(bearerToken, "the token is null");
         var sql = """
                 insert into hub_ayrshare_accounts(label, created_date, bearer_token) values (? ,? ,?) 
                 on conflict on constraint hub_ayrshare_accounts_label_key 
