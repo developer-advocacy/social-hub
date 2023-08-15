@@ -64,7 +64,17 @@ public class SocialHubApplication {
     ApplicationRunner registrationRunner(AyrshareAccountsService accounts, UsersService users, HubProperties properties) {
         return args -> {
 
+            log.info("---------------------------");
+            System.getenv().forEach((k, v) -> log.info("env:" + k + '=' + v));
+
+            log.info("---------------------------");
             log.info(properties.toString());
+            for (var a : properties.ayrshares())
+                log.info(a.toString());
+            for (var c : properties.users())
+                log.info(c.toString());
+            log.info("---------------------------");
+
             var newAccounts = new HashMap<String, AyrshareAccount>();
             var newUsers = new HashSet<User>();
 
