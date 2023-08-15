@@ -6,12 +6,12 @@ import java.net.URI;
 
 @ConfigurationProperties(prefix = "socialhub")
 public record HubProperties(
-        AyrshareAccount[] ayrshareAccounts,
+        Ayrshare[] ayrshares,
         URI uri,
         User[] users,
         Encryption encryption) {
 
-    public record AyrshareAccount(String label, String token) {
+    public record Ayrshare(String label, String token) {
     }
 
     public record User(String username, String[] accounts) {
