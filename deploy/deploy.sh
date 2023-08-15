@@ -19,7 +19,7 @@ docker rmi -f $IMAGE_NAME || echo "couldn't delete the old image, $IMAGE_NAME. I
 
 cd $ROOT_DIR
 
-./gradlew buildBootImage --imageName=$IMAGE_NAME
+./gradlew bootBuildImage --imageName=$IMAGE_NAME
 docker push $IMAGE_NAME
 
 gcloud compute addresses list --format json | jq '.[].name' -r | grep $RESERVED_IP_NAME || gcloud compute addresses create $RESERVED_IP_NAME --global
