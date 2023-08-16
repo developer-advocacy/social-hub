@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 import java.util.Base64;
@@ -29,13 +30,28 @@ class PostJsonDecoder {
             var map = new HashMap<String, Resource>();
             for (var m : media) {
                 var contents = Base64.getDecoder().decode(m.get("content"));
-                map.put(m.get("name"), new ByteArrayResource(contents));
+                var mediaTypeResource = new ContentTypeResource(contents, MediaType.parseMediaType(m.get("content-type")));
+                map.put(m.get("name"), mediaTypeResource);
             }
             return new PostRequest(this.objectMapper.convertValue(root.get("platforms"), String[].class),
                     root.get("content").asText(), map);
         }//
         catch (Exception iae) {
             throw new IllegalArgumentException(iae);
+        }
+    }
+
+    public static class ContentTypeResource extends ByteArrayResource {
+
+        private final MediaType mediaType;
+
+        public ContentTypeResource(byte[] byteArray, MediaType mediaType) {
+            super(byteArray);
+            this.mediaType = mediaType;
+        }
+
+        public MediaType mediaType() {
+            return this.mediaType;
         }
     }
 }

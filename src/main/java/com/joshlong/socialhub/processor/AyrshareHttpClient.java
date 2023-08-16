@@ -21,13 +21,8 @@ class AyrshareHttpClient {
         this.socialHubApiUri = host;
     }
 
-    private String extensionFor(MediaType mediaType) {
-        return mediaType.getSubtype();
-    }
-
-    private String mediaUri(Media media) {//todo make this real; this app should expose an endpoint that serves up Media
-        //return "https://img.ayrshare.com/012/gb.jpg";
-        return this.socialHubApiUri + "/media/" + media.uuid() + "." + extensionFor(media.contentType());
+    private String mediaUri(Media media) {
+        return this.socialHubApiUri + "/media/" + media.uuid();
     }
 
     String post(String message, String[] platforms, Media[] media, String ayrshareAccountBearerToken) {

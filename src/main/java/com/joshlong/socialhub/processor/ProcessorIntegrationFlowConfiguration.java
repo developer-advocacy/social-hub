@@ -20,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.messaging.access.intercept.AuthorizationChannelInterceptor;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
@@ -59,14 +60,16 @@ class ProcessorIntegrationFlowConfiguration {
     }
 
     @Bean
-    AyrshareHttpClient ayrshareClient(HubProperties properties,RestTemplate template) {
-        return new AyrshareHttpClient(properties.uri() ,
-                template);
+    AyrshareHttpClient ayrshareClient(HubProperties properties, RestTemplate template) {
+        return new AyrshareHttpClient(properties.uri(), template);
     }
 
     @Bean
     IntegrationFlow inboundAmqpAdapterFlow(ConnectionFactory connectionFactory, MessageChannel inboundPostRequestsMessageChannel) {
-        return IntegrationFlow.from(Amqp.inboundAdapter(connectionFactory, this.queue)).channel(inboundPostRequestsMessageChannel).get();
+        return IntegrationFlow//
+                .from(Amqp.inboundAdapter(connectionFactory, this.queue))//
+                .channel(inboundPostRequestsMessageChannel)//
+                .get();
     }
 
     @Bean
@@ -113,6 +116,8 @@ class ProcessorIntegrationFlowConfiguration {
                     // 1. take the JSON and turn it into objects
                     var post = postJsonDecoder.decode(source);
                     var user = usersService.userByName(SecurityContextHolder.getContext().getAuthentication().getName());
+                    Assert.notNull(post, "the post must not be null");
+                    Assert.notNull(user, "the user must not be null");
                     return new PostRequestAndCredentials(user, post);
                 })//
                 .transform((GenericTransformer<PostRequestAndCredentials, PostAndCredentials>) requestAndCredentials -> {
@@ -120,23 +125,30 @@ class ProcessorIntegrationFlowConfiguration {
                     var source = requestAndCredentials.postRequest();
                     var platforms = Set.copyOf(Arrays.asList(source.platforms()));
                     var accounts = accountsService.ayrshareAccountsForUser(requestAndCredentials.user().id());
-                    var targets = new HashMap<AyrshareAccount, Set<String>>();
                     var user = requestAndCredentials.user();
+                    var targets = new HashMap<AyrshareAccount, Set<String>>();
                     for (var a : accounts)
                         targets.put(a, platforms);
-                    var medias = source.media().entrySet()
+
+                    var medias = source
+                            .media()
+                            .entrySet()
                             .stream()
-                            .map(entry -> from(mediaService, entry.getKey(), entry.getValue()))
-                            .toList();
+                            .map(entry -> mediaFromKeyAndResource(mediaService, entry.getKey(), entry.getValue()))
+                            .toList()
+                            .toArray(new Media[0]);
+
                     var newPost = postService.newPost(
                             requestAndCredentials.user(),
-                            medias.toArray(new Media[0]),
+                            medias,
                             targets,
                             source.content(),
                             Instant.now()
                     );
+
                     return new PostAndCredentials(user, newPost);
                 })//
+                //todo split ?
                 .handle((GenericHandler<PostAndCredentials>) (pac, headers) -> {
                     // 3. take post and issue HTTP requests
                     // todo should this be put in a separate integration flow to handle scheduling? we could just
@@ -163,7 +175,7 @@ class ProcessorIntegrationFlowConfiguration {
     }
 
 
-    private Media from(MediaService mediaService, String key, Resource resource) {
+    private Media mediaFromKeyAndResource(MediaService mediaService, String key, Resource resource) {
         try {
             return mediaService.newMedia(key, resource.getContentAsByteArray(), MediaType.IMAGE_PNG);
         }//
