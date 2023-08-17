@@ -34,7 +34,6 @@ class AyrshareHttpClient {
         Assert.notNull(message, "the message must not be null");
         Assert.state(platforms != null && platforms.length > 0, "you must specify a platform to which you want to publish this");
         Assert.notNull(ayrshareAccountBearerToken, "you must specify a valid Ayrshare token");
-
         var url = "https://app.ayrshare.com/api/post";
 
         var payload = new HashMap<String, Object>();
