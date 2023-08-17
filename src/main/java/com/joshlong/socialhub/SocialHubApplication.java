@@ -45,13 +45,6 @@ public class SocialHubApplication {
         SpringApplication.run(SocialHubApplication.class, args);
     }
 
-/*    @Bean
-    RouterFunction<ServerResponse> routes() {
-        return route()
-                .GET("/media/{id}", request -> ok().body(Map.of("message", "Hello, " + SecurityContextHolder.getContext().getAuthentication().getName() + "! (" + request.pathVariable("id") + ")")))
-                .build();
-    }*/
-
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http

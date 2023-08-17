@@ -33,25 +33,25 @@ class ProcessorIntegrationFlowConfiguration {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    private final String queue = "socialhub-requests";
+    private final String destination = "socialhub-requests";
 
     @Bean
     Binding binding() {
         return BindingBuilder//
                 .bind(this.queue())//
                 .to(this.exchange())//
-                .with(this.queue)//
+                .with(this.destination)//
                 .noargs();
     }
 
     @Bean
     Exchange exchange() {
-        return ExchangeBuilder.directExchange(this.queue).build();
+        return ExchangeBuilder.directExchange(this.destination).build();
     }
 
     @Bean
     Queue queue() {
-        return QueueBuilder.durable(this.queue).build();
+        return QueueBuilder.durable(this.destination).build();
     }
 
     @Bean
@@ -66,8 +66,11 @@ class ProcessorIntegrationFlowConfiguration {
 
     @Bean
     IntegrationFlow inboundAmqpAdapterFlow(ConnectionFactory connectionFactory, MessageChannel inboundPostRequestsMessageChannel) {
+        var amqp = Amqp
+                .inboundAdapter(connectionFactory, this.destination)
+                .configureContainer(spec -> spec.defaultRequeueRejected(false));//todo requeue failures?
         return IntegrationFlow//
-                .from(Amqp.inboundAdapter(connectionFactory, this.queue))//
+                .from(amqp)//
                 .channel(inboundPostRequestsMessageChannel)//
                 .get();
     }
@@ -156,7 +159,6 @@ class ProcessorIntegrationFlowConfiguration {
                     //  pass that along in the request and leave it to Ayrshare, right?
 
                     var post = postAndCredentials.post();
-
                     log.info("time to actually publish the post [" + post + "]");
                     // todo should i instead do a splitter, splitting across the
                     //  different accounts to which the message should be routed,
