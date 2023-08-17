@@ -146,21 +146,23 @@ class ProcessorIntegrationFlowConfiguration {
                             Instant.now()
                     );
 
+                    log.info("persisted a new post [" + newPost + "]");
                     return new PostAndCredentials(user, newPost);
                 })//
                 //todo split ?
-                .handle((GenericHandler<PostAndCredentials>) (pac, headers) -> {
+                .handle((GenericHandler<PostAndCredentials>) (postAndCredentials, headers) -> {
                     // 3. take post and issue HTTP requests
                     // todo should this be put in a separate integration flow to handle scheduling? we could just
                     //  pass that along in the request and leave it to Ayrshare, right?
 
-                    var post = pac.post();
+                    var post = postAndCredentials.post();
 
+                    log.info("time to actually publish the post [" + post + "]");
                     // todo should i instead do a splitter, splitting across the
                     //  different accounts to which the message should be routed,
                     //  in the integration flow?
 
-                    pac.post().targets().forEach((account, socialPlatforms) -> {
+                    postAndCredentials.post().targets().forEach((account, socialPlatforms) -> {
                         var jsonAfterPost = ayrshareHttpClient.post(
                                 post.text(),
                                 socialPlatforms.toArray(new String[0]),
