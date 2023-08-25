@@ -5,21 +5,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.integration.amqp.dsl.Amqp;
+import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.context.IntegrationContextUtils;
 import org.springframework.integration.core.GenericHandler;
 import org.springframework.integration.core.GenericTransformer;
+import org.springframework.integration.dsl.DirectChannelSpec;
 import org.springframework.integration.dsl.IntegrationFlow;
+import org.springframework.integration.dsl.MessageChannelSpec;
 import org.springframework.integration.dsl.MessageChannels;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.messaging.access.intercept.AuthorizationChannelInterceptor;
+import org.springframework.security.messaging.context.SecurityContextChannelInterceptor;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 
@@ -32,6 +39,8 @@ import java.util.Set;
 class ProcessorIntegrationFlowConfiguration {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
+
+    private final String authenticationHeaderName = HttpHeaders.AUTHORIZATION;
 
     private final String destination = "socialhub-requests";
 
@@ -55,11 +64,6 @@ class ProcessorIntegrationFlowConfiguration {
     }
 
     @Bean
-    JwtAuthenticatingAuthorizationManager jwtAuthenticatingAuthorizationManager(JwtAuthenticationConverter converter, JwtDecoder decoder, UsersService usersService) {
-        return new JwtAuthenticatingAuthorizationManager(converter, decoder, usersService);
-    }
-
-    @Bean
     AyrshareHttpClient ayrshareClient(HubProperties properties, RestTemplate template) {
         return new AyrshareHttpClient(properties.uri(), template);
     }
@@ -76,8 +80,19 @@ class ProcessorIntegrationFlowConfiguration {
     }
 
     @Bean
-    MessageChannel inboundPostRequestsMessageChannel(JwtAuthenticatingAuthorizationManager authorizationManager) {
-        return MessageChannels.direct().interceptor(new AuthorizationChannelInterceptor(authorizationManager)).getObject();
+    JwtAuthenticationProvider jwtAuthenticationProvider(JwtDecoder decoder) {
+        return new JwtAuthenticationProvider(decoder);
+    }
+
+    @Bean
+    MessageChannelSpec<DirectChannelSpec, DirectChannel> inboundPostRequestsMessageChannel(
+            UsersService usersService, JwtAuthenticationProvider authenticationProvider) {
+        return MessageChannels
+                .direct()
+                .interceptor(
+                        new JwtAuthenticationInterceptor(this.authenticationHeaderName, usersService, authenticationProvider),
+                        new SecurityContextChannelInterceptor(this.authenticationHeaderName),
+                        new AuthorizationChannelInterceptor(AuthenticatedAuthorizationManager.authenticated()));
     }
 
     @Bean(name = IntegrationContextUtils.ERROR_CHANNEL_BEAN_NAME)
@@ -103,7 +118,6 @@ class ProcessorIntegrationFlowConfiguration {
             AyrshareAccountsService accountsService,
             MediaService mediaService,
             PostService postService,
-            UsersService usersService,
             MessageChannel inboundPostRequestsMessageChannel,
             PostJsonDecoder postJsonDecoder) {
 
@@ -115,13 +129,11 @@ class ProcessorIntegrationFlowConfiguration {
 
         return IntegrationFlow
                 .from(inboundPostRequestsMessageChannel)//
-                .transform((GenericTransformer<String, PostRequestAndCredentials>) source -> {
-                    // 1. take the JSON and turn it into objects
-                    var post = postJsonDecoder.decode(source);
-                    var user = usersService.userByName(SecurityContextHolder.getContext().getAuthentication().getName());
+                .<String>handle((payload, headers) -> {
+                    var post = postJsonDecoder.decode(payload);
+                    var authentication = headers.get(this.authenticationHeaderName, Authentication.class);
                     Assert.notNull(post, "the post must not be null");
-                    Assert.notNull(user, "the user must not be null");
-                    return new PostRequestAndCredentials(user, post);
+                    return new PostRequestAndCredentials((User) authentication.getPrincipal(), post);
                 })//
                 .transform((GenericTransformer<PostRequestAndCredentials, PostAndCredentials>) requestAndCredentials -> {
                     // 2. transform PostRequest into persistent Post
@@ -132,7 +144,6 @@ class ProcessorIntegrationFlowConfiguration {
                     var targets = new HashMap<AyrshareAccount, Set<String>>();
                     for (var a : accounts)
                         targets.put(a, platforms);
-
                     var medias = source
                             .media()
                             .entrySet()
@@ -189,4 +200,5 @@ class ProcessorIntegrationFlowConfiguration {
         return null;
     }
 }
+
 
