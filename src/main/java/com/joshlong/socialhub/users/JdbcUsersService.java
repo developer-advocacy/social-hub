@@ -19,15 +19,13 @@ import java.util.function.Function;
 class JdbcUsersService implements UsersService {
 
     private final JdbcTemplate jdbc;
-    private final PasswordEncoder encoder;
     private final Function<Integer, Collection<AyrshareAccount>> ayrshareAccountsCallback;
     private final ApplicationEventPublisher publisher;
 
-    JdbcUsersService(JdbcTemplate jdbc, PasswordEncoder encoder,
+    JdbcUsersService(JdbcTemplate jdbc,
                      Function<Integer, Collection<AyrshareAccount>> ayrshareAccountsCallback,
                      ApplicationEventPublisher publisher) {
         this.jdbc = jdbc;
-        this.encoder = encoder;
         this.ayrshareAccountsCallback = ayrshareAccountsCallback;
         this.publisher = publisher;
     }
