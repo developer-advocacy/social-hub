@@ -7,6 +7,7 @@ import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.util.Assert;
@@ -17,6 +18,7 @@ import java.util.function.Supplier;
  * look for a JWT in the Spring Integration message, make sure it's valid by contacting the issuer URI,
  * and then making sure it lines up with a user in the local system.
  */
+@Deprecated
 class JwtAuthenticatingAuthorizationManager implements AuthorizationManager<Message<?>> {
 
     private final JwtAuthenticationConverter jwtAuthenticationConverter;
@@ -25,10 +27,13 @@ class JwtAuthenticatingAuthorizationManager implements AuthorizationManager<Mess
 
     private final UsersService users;
 
-    JwtAuthenticatingAuthorizationManager(JwtAuthenticationConverter jwtAuthenticationConverter, JwtDecoder decoder, UsersService users) {
+    private final SecurityContextHolderStrategy strategy;
+
+    JwtAuthenticatingAuthorizationManager(JwtAuthenticationConverter jwtAuthenticationConverter, JwtDecoder decoder, UsersService users, SecurityContextHolderStrategy strategy) {
         this.jwtAuthenticationConverter = jwtAuthenticationConverter;
         this.decoder = decoder;
         this.users = users;
+        this.strategy = strategy;
     }
 
     @Override
@@ -37,7 +42,9 @@ class JwtAuthenticatingAuthorizationManager implements AuthorizationManager<Mess
         Assert.hasText(token, "the token must be non-empty!");
         var decodedJwt = this.decoder.decode(token);
         var authenticationToken = this.jwtAuthenticationConverter.convert(decodedJwt);
-        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        var sch = SecurityContextHolder.createEmptyContext();
+        sch.setAuthentication(authenticationToken);
+        this.strategy.setContext(sch);
         var auth = authentication.get();
         if (auth.isAuthenticated()) {
             var username = auth.getName();
