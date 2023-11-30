@@ -15,7 +15,7 @@ spec:
         app: social-hub
     spec:
       containers:
-        - image: gcr.io/pgtm-jlong/social-hub
+        - image: gcr.io/joshlong/social-hub
           imagePullPolicy: Always
           name: social-hub-container
           startupProbe:
